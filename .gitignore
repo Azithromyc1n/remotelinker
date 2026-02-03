@@ -1,0 +1,43 @@
+############################################################
+# Node / JavaScript
+**/node_modules/
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/pnpm-debug.log*
+**/.npm/
+**/.yarn/
+**/.pnp.*
+**/.parcel-cache/
+############################################################
+# Build outputs
+**/dist/
+**/build/
+**/.next/
+**/.nuxt/
+**/.output/
+**/out/
+**/coverage/
+**/.cache/
+############################################################
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+############################################################
+# OS / System
+.DS_Store
+Thumbs.db
+Desktop.ini
+############################################################
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+.dockerignore
+.env.development
+.env.production
+.env.test

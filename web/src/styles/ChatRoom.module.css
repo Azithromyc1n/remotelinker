@@ -1,0 +1,348 @@
+/*
+ * ChatRoom.module.css
+ * 采用统一的米黄色背景
+ */
+.container {
+    background-color: #f7e8ba; /* 统一的米黄色背景 */
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    font-family: Arial, sans-serif; /* 基础字体 */
+}
+
+/* 主聊天界面容器 */
+.chatWindow {
+    background-color: #fff; /* 聊天区域背景为白色 */
+    width: 90%;
+    max-width: 1200px;
+    height: 80vh;
+    min-height: 500px;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    display: flex;
+    overflow: hidden;
+}
+
+/* 成员列表侧边栏 */
+.sidebar {
+    width: 200px;
+    background-color: #f5f5f5; /* 侧边栏背景 */
+    padding: 15px 0;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid #ddd;
+}
+
+.sidebarHeader {
+    padding: 0 15px 10px 15px;
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: #333;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 10px;
+}
+
+.membersList {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 0 15px;
+}
+
+/* 单个成员样式 */
+.memberItem {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+}
+
+.memberAvatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    margin-right: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+    font-weight: bold;
+    font-size: 0.8rem;
+}
+
+/* 模拟不同的头像颜色 */
+.avatarM { background-color: #ff9800; } /* Orange */
+.avatarB { background-color: #2196f3; } /* Blue */
+.memberMe { font-weight: bold; }
+
+/* 侧边栏底部的操作按钮 */
+.sidebarFooter {
+    display: flex;
+    padding: 10px 15px 0 15px;
+    border-top: 1px solid #ddd;
+    gap: 10px;
+}
+
+.actionButton {
+    flex-grow: 1;
+    padding: 8px 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    cursor: pointer;
+    background-color: #fff;
+    font-size: 0.9rem;
+}
+
+/* 聊天消息区域 */
+.chatArea {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.messagesContainer {
+    flex-grow: 1;
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* 消息样式 */
+.message {
+    display: flex;
+    gap: 10px;
+    max-width: 60%;
+}
+
+.messageFromOthers {
+    align-self: flex-start;
+}
+
+.messageFromMe {
+    align-self: flex-end;
+    flex-direction: row-reverse; /* 我的消息在右侧，头像也在右侧 */
+}
+
+.messageContent {
+    padding: 10px 15px;
+    border-radius: 15px;
+    line-height: 1.4;
+    font-size: 0.95rem;
+}
+
+.contentOthers {
+    background-color: #eee;
+    border-top-left-radius: 0;
+}
+
+.contentMe {
+    background-color: #2196f3; /* 蓝色气泡 */
+    color: #fff;
+    border-top-right-radius: 0;
+}
+
+/* 大块文件/图片预览模拟 */
+.filePreview {
+    width: 250px;
+    height: 150px;
+    background-color: #ccc;
+    border-radius: 10px;
+    margin-top: 5px;
+    border: none !important;
+}
+
+/* 消息输入区域 */
+.inputArea {
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    border-top: 1px solid #ddd;
+    background-color: #f5f5f5;
+}
+
+.textInput {
+    flex-grow: 1;
+    padding: 10px 15px;
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    margin-right: 10px;
+    font-size: 1rem;
+    outline: none;
+}
+
+/* SEND 按钮 */
+.sendButton {
+    background-color: #2196f3;
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 45px;
+    height: 45px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    cursor: pointer;
+    margin-right: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 附加功能（+）按钮 */
+.addButton {
+    background-color: #fff;
+    color: #2196f3;
+    border: 1px solid #2196f3;
+    border-radius: 50%;
+    width: 45px;
+    height: 45px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2rem;
+    line-height: 1;
+    cursor: pointer;
+}
+
+/* 响应式调整 */
+/* ========= Mobile-first fixes ========= */
+
+/* 让页面在手机上不要垂直居中裁切，使用动态视口高度 */
+@media (max-width: 768px) {
+  .container {
+    min-height: 100dvh;          /* 代替 100vh，适配移动端地址栏 */
+    padding: 10px;
+    align-items: stretch;         /* 不要居中，避免上下被裁掉 */
+    justify-content: stretch;
+  }
+
+  .chatWindow {
+    width: 100%;
+    height: 100dvh;              /* 占满屏幕 */
+    min-height: 0;               /* 取消 500px 下限 */
+    border-radius: 0;            /* 手机全屏更自然（可保留也行） */
+    flex-direction: column;      /* 关键：左右布局改上下布局 */
+  }
+
+  /* Sidebar 变成顶部条 */
+  .sidebar {
+    width: 100%;
+    padding: 10px 0;
+    border-right: none;
+    border-bottom: 1px solid #ddd;
+  }
+
+  .sidebarHeader {
+    margin-bottom: 6px;
+    padding: 0 12px 6px 12px;
+  }
+
+  /* 成员列表横向滚动，避免占太多空间 */
+  .membersList {
+    flex-grow: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    display: flex;
+    gap: 10px;
+    padding: 8px 12px;
+    -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+  }
+
+  .memberItem {
+    flex: 0 0 auto;
+    padding: 0;
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .memberAvatar {
+    width: 34px;
+    height: 34px;
+    margin: 0 0 4px 0;
+    font-size: 0.85rem;
+  }
+
+  /* 手机先隐藏底部按钮区，避免挤压聊天区（你也可以改成放到输入框旁） */
+  .sidebarFooter {
+    display: flex;
+    padding: 8px 12px 10px 12px;
+    border-top: 1px solid #ddd;
+    gap: 10px;
+  }
+
+  .actionButton {
+    padding: 10px 8px;
+    font-size: 0.9rem;
+  }
+
+  /* 聊天区：必须允许内部滚动 */
+  .chatArea {
+    flex-grow: 1;
+    min-height: 0;               /* 关键：允许 messagesContainer 正常滚动 */
+    display: flex;
+    flex-direction: column;
+  }
+
+  .messagesContainer {
+    flex-grow: 1;
+    min-height: 0;               /* 关键：flex 下滚动需要它 */
+    padding: 12px;
+    gap: 10px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* 消息气泡别太宽，且能自动换行 */
+  .message {
+    max-width: 85%;
+  }
+
+  .messageContent {
+    font-size: 0.92rem;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  /* 文件预览在手机缩小，不要撑出屏幕 */
+  .filePreview {
+    width: min(240px, 70vw);
+    height: 120px;
+  }
+
+  /* 输入区更紧凑，并处理 iPhone 底部安全区 */
+  .inputArea {
+    padding: 10px;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    gap: 8px;
+  }
+
+  .textInput {
+    margin-right: 0;             /* 用 gap 控制间距 */
+    font-size: 16px;             /* 避免 iOS 自动放大输入框 */
+  }
+
+  .sendButton{
+    width: 42px;
+    height: 42px;
+    flex: 0 0 auto;
+  }
+
+  .addButton {
+    font-size: 1.8rem;
+  }
+
+  .addButton {
+    width: 42px;
+    height: auto;              
+    aspect-ratio: 1 / 1;       
+    padding: 0;                
+    line-height: 1;            
+    border-radius: 9999px;     
+    box-sizing: border-box;
+    flex: 0 0 auto;            
+    display: inline-flex;      
+    align-items: center;
+    justify-content: center;
+  }
+}

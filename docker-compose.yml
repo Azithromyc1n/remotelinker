@@ -1,0 +1,31 @@
+services:
+  backend:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: app-backend
+    restart: always
+    expose:
+      - "3001"
+    networks:
+      - appnet
+
+  frontend:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: app-frontend
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /opt/myapp/ssl/remotelinker.site_nginx:/etc/nginx/ssl:ro
+    depends_on:
+      - backend
+    networks:
+      - appnet
+
+networks:
+  appnet:
+    driver: bridge
