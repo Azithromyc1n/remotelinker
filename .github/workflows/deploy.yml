@@ -21,17 +21,13 @@ jobs:
 
             cd /opt/myapp/remotelinker
 
-            # 拉最新代码
             git fetch --all
             git reset --hard origin/main
 
-            # 构建并更新容器
             docker compose down || true
             docker compose build --no-cache
             docker compose up -d --remove-orphans
 
-            # 清理无用镜像（可选）
             docker image prune -f
 
-            # 查看状态
             docker compose ps
