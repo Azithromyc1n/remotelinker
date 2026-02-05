@@ -1,58 +1,15 @@
 import React, { useEffect, useState, useRef } from 'react';
-import styles from '@/styles/ChatRoom.module.css';
-import shareStyles from '@/styles/Share.module.css';
 import { useParams } from 'react-router-dom';
+import styles from '@/styles/ChatRoom.module.css';  //styles
+import { safeUUID } from "@/utils/chat/utils";   //utils
+import type {  SignalData, ChatMessage, FileCtrl, IncomingFile  } from '@/types/chat/types';    //types
+
+import {  membersList  } from '@/components/chat/MembersList';
+import {  messagesList  } from '@/components/chat/MessagesList';
+import {  ShareInfo  } from "@/components/chat/ShareModal";
+
 import PromptModal from '@/components/PromptModal/PromptModal';
 import { io, type Socket } from 'socket.io-client';
-import { QRCodeCanvas } from "qrcode.react";
-
-
-interface SignalPayload {
-    offer?: RTCSessionDescriptionInit;
-    answer?: RTCSessionDescriptionInit;
-    candidate?: RTCIceCandidate;
-}
-
-//接收Signal
-interface SignalData {
-    sender: string,
-    senderName? :string,
-    signal: SignalPayload,
-}
-
-
-type ChatMessage = {
-    id: string;
-    kind: "text";
-    fromID: string;     // userID
-    fromName: string;   //userName
-    text: string;     // msg.msg
-    ts: number;       // msg.ts
-} | { 
-    id: string;
-    kind: "file"; 
-    fromID: string; 
-    fromName: string; 
-    fileName: string; 
-    size: number; 
-    mime: string; 
-    url: string; 
-    ts: number 
-};
-
-type FileCtrl =
-  | { type: "file-meta"; id: string; name: string; size: number; mime: string; ts: number }
-  | { type: "file-end"; id: string; ts: number };
-
-type IncomingFile = {
-  id: string;
-  name: string;
-  size: number;
-  mime: string;
-  chunks: ArrayBuffer[];
-  received: number;
-  ts: number;
-};
 
 /**
  * 聊天室组件
@@ -64,10 +21,12 @@ const ChatRoom: React.FC = () => {
     const ICE_SERVERS: RTCConfiguration = {
         iceServers: JSON.parse(import.meta.env.VITE_ICE_SERVERS || "[]"),
     };  
+    const SIGNALING_SERVER = import.meta.env.VITE_SIGNALING_URL as string;
 
     const { roomID } = useParams<{ roomID: string }>();
 
     //useState    
+    const [isShareOpen, setIsShareOpen] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(true); //开关状态
     const [username, setUsername] = useState<string | null>(null); //本机用户名
     const [confirmed, setConfirmed] = useState(false);   //控制是否渲染chat页面
@@ -110,12 +69,20 @@ const ChatRoom: React.FC = () => {
         setIsModalOpen(false);
     };
 
+    
+    const handleShareInfoClose = () => {
+        setIsShareOpen(false);
+    }
+    const handleClickShareBtn = () => {
+        setIsShareOpen(true);
+    }
+    
     useEffect(() => {
         if (!username || !confirmed || !roomID) return;
         //从url中获取房间号
         console.log('roomID: ',roomID,' username: ',username);
 
-        socketRef.current = io({
+        socketRef.current = io(SIGNALING_SERVER,{
             path: "/socket.io",
             transports: ["websocket", "polling"],
         });
@@ -495,167 +462,9 @@ const ChatRoom: React.FC = () => {
         setDraft("")
     }
 
-    //生成随机颜色
-    const colorFromId = (id: string) => {
-        let hash = 0;
-        for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) | 0;
-        const hue = Math.abs(hash) % 360;
-        return `hsl(${hue} 70% 55%)`;
-    };
+    
 
-    //基于用户名生成首字符
-    const getFirstWord = (username: string) => {
-        const s = username.trim();
-        return s[0].toUpperCase();
-    }
-
-    //时间格式转换
-    const formatDateTime = (time : number) => {
-        const d = new Date(time);
-
-        const yyyy = d.getFullYear();
-        const MM = String(d.getMonth() + 1).padStart(2, "0");
-        const dd = String(d.getDate()).padStart(2, "0");
-
-        const HH = String(d.getHours()).padStart(2, "0");
-        const mm = String(d.getMinutes()).padStart(2, "0");
-        const ss = String(d.getSeconds()).padStart(2, "0");
-
-        return `${yyyy}-${MM}-${dd} ${HH}:${mm}:${ss}`;
-    }
-
-    const safeUUID = () => {
-        // 现代浏览器
-        if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-            return crypto.randomUUID();
-        }
-
-        // 次优：用 crypto.getRandomValues 生成 16 bytes
-        if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
-            const bytes = new Uint8Array(16);
-            crypto.getRandomValues(bytes);
-            // 简单转 hex
-            return Array.from(bytes).map(b => b.toString(16).padStart(2, "0")).join("");
-        }
-
-        // 最后兜底：时间戳+随机数（不够强但够用做 key）
-        return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    };
-
-
-    // 渲染成员列表
-    const renderMembers = () => {
-
-        const myID = socketRef.current?.id;
-        const members = Array.from(userList.entries());
-        
-        return (
-                    <div className={styles.membersList}>
-                        {members.map(([memberID, memberName]) => {
-                            
-                            const isMe = !!myID && memberID === myID;
-                            const avatarColor = colorFromId(memberID);
-                            
-                            return (
-
-                                <div key={memberID} className={styles.memberItem}>
-                                    <div 
-                                        className={styles.memberAvatar}
-                                        style={{ backgroundColor: avatarColor}}
-                                        title={memberName}
-                                    >
-                                        {getFirstWord(memberName)}
-                                    </div>
-                                    <span className={isMe ? styles.memberMe : ''}>
-                                        {memberName}
-                                        {isMe ? "(me)" : ""}
-                                    </span>
-                                </div>
-                        )})}
-                    </div>
-        );
-    }
-
-    const renderMessages = () => {
-        
-        const myID = socketRef.current?.id;
-
-        return (
-        <div className={styles.messagesContainer}>
-            {messages.map((msg) => {
-
-                const isMe = !!myID && msg.fromID === myID;
-
-                return (
-                    <div 
-                        key={msg.id} 
-                        className={`${styles.message} ${isMe ? styles.messageFromMe : styles.messageFromOthers}`}
-                    >
-                        {/* 头像渲染 */}
-                        <div 
-                            className={styles.memberAvatar}
-                            style={{  backgroundColor: colorFromId(msg.fromID)  }}
-                            title={msg.fromName}
-                        >
-                            {getFirstWord(msg.fromName)}
-                        </div>
-                        
-                        {/* 渲染消息内容 */}
-                        <div 
-                            className={`${styles.messageContent} ${isMe ? styles.contentMe : styles.contentOthers}`}
-                            title={formatDateTime(msg.ts)}
-                        >
-
-                            {msg.kind === "text" ? (msg.text) : (
-                                <a href={msg.url} download={msg.fileName}>
-                                    {msg.fileName} ({Math.ceil(msg.size / 1024)} KB)
-                                </a>
-                            )}
-                        </div>
-                    </div>
-                );
-            })}
-        </div>
-    );}
-
-
-    interface ShareInfo {
-        isOpen: boolean;
-        onClose: () => void;
-    }
-    const [isShareOpen, setIsShareOpen] = useState(false);
-    const handleShareInfoClose = () => {
-        setIsShareOpen(false);
-    }
-    const handleClickShareBtn = () => {
-        setIsShareOpen(true);
-    }
-    const ShareInfo: React.FC<ShareInfo> = ({
-        isOpen,
-        onClose,
-    }) => {
-
-        if (!isOpen) {
-            return null;
-        }
-
-        const url = window.location.href;
-        const room = window.location.pathname.split("/")[2];
-
-
-        return (
-            <div className={shareStyles.backdrop} onClick={onClose}>
-                <div className={shareStyles.modal} onClick={(e) => e.stopPropagation()}>
-                    <div className={shareStyles.container}>
-                        <div className={shareStyles.roomText}>
-                            RoomID: {room}
-                        </div>
-                        <QRCodeCanvas value={url} size={180} />
-                    </div>
-                </div>
-            </div>
-        );
-    }
+    const myID = socketRef.current?.id;
 
     return (
         <>
@@ -676,7 +485,7 @@ const ChatRoom: React.FC = () => {
                                 members
                             </div>
                         
-                            {renderMembers()}
+                            {membersList(userList, myID)}
 
                             <div className={styles.sidebarFooter}>
                                 <button className={styles.actionButton} onClick={handleClickShareBtn}>Share</button>
@@ -687,7 +496,7 @@ const ChatRoom: React.FC = () => {
                         {/* 聊天区域和输入框 */}
                         <div className={styles.chatArea}>
                         
-                            {renderMessages()}
+                            {messagesList(messages, myID)}
 
                             {/* 消息输入区域 */}
                             <div className={styles.inputArea}>
