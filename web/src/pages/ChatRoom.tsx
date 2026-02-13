@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { useNavigate } from "react-router-dom";
 import { useParams } from 'react-router-dom';
 import styles from '@/styles/ChatRoom.module.css';  //styles
 import { safeUUID } from "@/utils/chat/utils";   //utils
@@ -7,8 +8,10 @@ import type {  SignalData, ChatMessage, FileCtrl, IncomingFile  } from '@/types/
 import {  membersList  } from '@/components/chat/MembersList';
 import {  messagesList  } from '@/components/chat/MessagesList';
 import {  ShareInfo  } from "@/components/chat/ShareModal";
-
 import PromptModal from '@/components/PromptModal/PromptModal';
+import Dropdown from '@/components/Menu/DropdownMenu';
+
+
 import { io, type Socket } from 'socket.io-client';
 
 /**
@@ -462,6 +465,48 @@ const ChatRoom: React.FC = () => {
         setDraft("")
     }
 
+    const navigate = useNavigate();
+    const onExit = () => {
+        cleanupAndReset();
+        navigate("/", { replace: true });
+    }
+
+    const fakeOnClick = () => {
+        //TODO: 
+        console.log("click menu")
+    }
+
+    const cleanupAndReset = () => {
+        socketRef.current?.disconnect();
+        socketRef.current = null;
+
+        for (const pc of peersRef.current.values()) {
+            try { pc.close(); } catch {}
+        }
+        peersRef.current.clear();
+
+        for (const dc of textDataChannelsRef.current.values()) {
+            try { dc.close(); } catch {}
+        }
+        textDataChannelsRef.current.clear();
+
+        for (const dc of fileDataChannelsRef.current.values()) {
+            try { dc.close(); } catch {}
+        }
+        fileDataChannelsRef.current.clear();
+
+        queuesRef.current.clear();
+        makingOfferMap.current.clear();
+
+        setUserList(new Map());
+        setMessages([]);
+        setDraft("");
+        setUsername(null);
+        setConfirmed(false);
+        setIsModalOpen(true);
+        console.log("user exit"); 
+    };
+
     
 
     const myID = socketRef.current?.id;
@@ -489,7 +534,7 @@ const ChatRoom: React.FC = () => {
 
                             <div className={styles.sidebarFooter}>
                                 <button className={styles.actionButton} onClick={handleClickShareBtn}>Share</button>
-                                <button className={styles.actionButton}>Exit</button>
+                                <button className={styles.actionButton} onClick={onExit}>Exit</button>
                             </div>
                         </div>
 
@@ -513,9 +558,13 @@ const ChatRoom: React.FC = () => {
                                 <button className={styles.sendButton} onClick={onSend}>
                                     SEND
                                 </button>
-                                <button className={styles.addButton}>
-                                    +
-                                </button>
+                                <Dropdown 
+                                    trigger={<button className={styles.addButton}>+</button>}
+                                >
+                                    <div className={styles.noSelect} style={{ padding: "10px 14px" }} data-close="true" onClick={fakeOnClick}>发送文件</div>
+                                    <div className={styles.noSelect} style={{ padding: "10px 14px" }} data-close="true" onClick={fakeOnClick}>打开语音</div>
+                                    <div className={styles.noSelect} style={{ padding: "10px 14px" }} data-close="true" onClick={fakeOnClick}>打开视频</div>
+                                </Dropdown>
                             </div>
                         </div>
                     </div>

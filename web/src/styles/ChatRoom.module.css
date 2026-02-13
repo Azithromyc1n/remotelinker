@@ -346,3 +346,9 @@
     justify-content: center;
   }
 }
+
+.noSelect {
+  user-select: none;          /* 标准 */
+  -webkit-user-select: none;  /* Safari */
+  -ms-user-select: none;      /* 老 IE/Edge */
+}

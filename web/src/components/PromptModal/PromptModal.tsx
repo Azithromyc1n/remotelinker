@@ -59,6 +59,9 @@ const PromptModal: React.FC<PromptModalProps> = ({
                     value={inputMsg}
                     onChange={handleInputChange}
                     placeholder={placeHolder}
+                    onKeyDown={(e) => {
+                        if (e.key == "Enter") handleSubmit();
+                    }}
                     autoFocus     
                 />
                 
