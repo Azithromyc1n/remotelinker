@@ -561,9 +561,9 @@ const ChatRoom: React.FC = () => {
                                 <Dropdown 
                                     trigger={<button className={styles.addButton}>+</button>}
                                 >
-                                    <div className={styles.noSelect} style={{ padding: "10px 14px" }} data-close="true" onClick={fakeOnClick}>发送文件</div>
-                                    <div className={styles.noSelect} style={{ padding: "10px 14px" }} data-close="true" onClick={fakeOnClick}>打开语音</div>
-                                    <div className={styles.noSelect} style={{ padding: "10px 14px" }} data-close="true" onClick={fakeOnClick}>打开视频</div>
+                                    <div className={styles.noSelect} style={{ padding: "10px 14px" }} data-close="true" onClick={fakeOnClick}>File</div>
+                                    <div className={styles.noSelect} style={{ padding: "10px 14px" }} data-close="true" onClick={fakeOnClick}>Voice</div>
+                                    <div className={styles.noSelect} style={{ padding: "10px 14px" }} data-close="true" onClick={fakeOnClick}>Video</div>
                                 </Dropdown>
                             </div>
                         </div>

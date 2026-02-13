@@ -59,10 +59,8 @@ const Dropdown: React.FC<DropdownProps> = ({
   useLayoutEffect(() => {
     if (!open) return;
     updatePosition();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, align, minWidth, maxWidth, offset, maxHeight]);
 
-  // 点击外部关闭
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
@@ -77,7 +75,6 @@ const Dropdown: React.FC<DropdownProps> = ({
     return () => document.removeEventListener("mousedown", onDown);
   }, [open]);
 
-  // ESC 关闭
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -120,7 +117,6 @@ const Dropdown: React.FC<DropdownProps> = ({
 
   return (
     <>
-      {/* ✅ 用 wrapper span 拿 ref 和 click，不再 cloneElement */}
       <span
         ref={triggerWrapRef}
         style={{ display: "inline-flex" }}
