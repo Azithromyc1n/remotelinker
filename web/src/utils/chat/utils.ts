@@ -56,3 +56,41 @@ export const waitBufferedLow = (dc: RTCDataChannel) =>
     dc.addEventListener("bufferedamountlow", onLow);
     onLow();
   });
+
+export const checkConnectionType = async (pc: RTCPeerConnection, userID: string) => {
+    try {
+        const stats = await pc.getStats();
+        let activePair: any = null;
+
+        // 1. 遍历所有的统计报告，找到当前被选中（nominated）且成功连接的候选对
+        stats.forEach(report => {
+            if (report.type === "candidate-pair" && report.state === "succeeded" && report.nominated) {
+                activePair = report;
+            }
+        });
+
+        if (activePair) {
+            // 2. 根据 ID 找到对应的 Local 和 Remote 候选者信息
+            const local = stats.get(activePair.localCandidateId);
+            const remote = stats.get(activePair.remoteCandidateId);
+
+            if (local && remote) {
+                console.log(`\n========= 🔗 用户 ${userID} 链路检测 =========`);
+                console.log(`本地节点: ${local.candidateType} (${local.protocol} ${local.ip || local.address}:${local.port})`);
+                console.log(`远端节点: ${remote.candidateType} (${remote.protocol} ${remote.ip || remote.address}:${remote.port})`);
+
+                // 3. 给出链路质量结论
+                if (local.candidateType === 'relay' || remote.candidateType === 'relay') {
+                    console.warn("结论：当前走的是 TURN 中继服务器 (Relay)，速度受限于服务器带宽！");
+                } else if (local.candidateType === 'host' && remote.candidateType === 'host') {
+                    console.log("结论：当前是局域网直连 (Host)，速度极快，可达百兆/秒！");
+                } else {
+                    console.log("结论：当前是外网 P2P 直连 (Srflx/Prflx)，速度取决于你们双方的真实宽带！");
+                }
+                console.log(`================================================\n`);
+            }
+        }
+    } catch (e) {
+        console.error("获取链路状态失败", e);
+    }
+};

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from "react-router-dom";
 import { useParams } from 'react-router-dom';
 import styles from '@/styles/ChatRoom.module.css';  //styles
-import { safeUUID, waitBufferedLow } from "@/utils/chat/utils";   //utils
+import { safeUUID, waitBufferedLow, checkConnectionType } from "@/utils/chat/utils";   //utils
 import type {  SignalData, ChatMessage, FileOffer, FileAccept, FileEnd, FileReject, IncomingStream, RoomUser, UserStatus  } from '@/types/chat/types';    //types
 
 import {  membersList  } from '@/components/chat/MembersList';
@@ -162,6 +162,9 @@ const ChatRoom: React.FC = () => {
                 case "connected":
                 case "completed":
                     iceRestartAttemptsRef.current.set(targetUserID, 0);
+                    setTimeout(()=>{
+                        checkConnectionType(pc, targetUserID);
+                    }, 1000);
                     break;
                 case "failed":
                     scheduleIceRestart(targetUserID);
@@ -591,7 +594,7 @@ const ChatRoom: React.FC = () => {
 
         dc.bufferedAmountLowThreshold = 2 * 1024 * 1024;    //4MB
 
-        const CHUNK_SIZE = 64 * 1024; //64KB
+        const CHUNK_SIZE = 32 * 1024; //64KB
         const HIGH_WATER = 4 * 1024 * 1024; //4MB
 
         let offset = 0;
