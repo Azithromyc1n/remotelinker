@@ -75,17 +75,17 @@ export const checkConnectionType = async (pc: RTCPeerConnection, userID: string)
             const remote = stats.get(activePair.remoteCandidateId);
 
             if (local && remote) {
-                console.log(`\n========= 🔗 用户 ${userID} 链路检测 =========`);
+                console.log(`\n========= 用户 ${userID} 链路检测 =========`);
                 console.log(`本地节点: ${local.candidateType} (${local.protocol} ${local.ip || local.address}:${local.port})`);
                 console.log(`远端节点: ${remote.candidateType} (${remote.protocol} ${remote.ip || remote.address}:${remote.port})`);
 
                 // 3. 给出链路质量结论
                 if (local.candidateType === 'relay' || remote.candidateType === 'relay') {
-                    console.warn("结论：当前走的是 TURN 中继服务器 (Relay)，速度受限于服务器带宽！");
+                    console.warn("当前是 TURN 中继服务器");
                 } else if (local.candidateType === 'host' && remote.candidateType === 'host') {
-                    console.log("结论：当前是局域网直连 (Host)，速度极快，可达百兆/秒！");
+                    console.log("当前是局域网直连 (Host)");
                 } else {
-                    console.log("结论：当前是外网 P2P 直连 (Srflx/Prflx)，速度取决于你们双方的真实宽带！");
+                    console.log("当前是外网 P2P 直连 (Srflx/Prflx)");
                 }
                 console.log(`================================================\n`);
             }
