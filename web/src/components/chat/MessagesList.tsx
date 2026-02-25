@@ -1,8 +1,12 @@
 import styles from '@/styles/ChatRoom.module.css';
-import type {  ChatMessage  } from '@/types/chat/types';
+import type {  Messages  } from '@/types/chat/types';
 import { colorFromId, getFirstWord, formatDateTime } from '@/utils/chat/utils';
 
-export const messagesList = ( messagesList: ChatMessage[], myId : string | undefined ) => {
+const MessagesList: React.FC<Messages> = ({
+    messagesList,
+    myId,
+    onFileClick
+}) => {
         
         const myID = myId;
         const messages = messagesList;
@@ -33,9 +37,44 @@ export const messagesList = ( messagesList: ChatMessage[], myId : string | undef
                         >
 
                             {msg.kind === "text" ? (msg.text) : (
-                                <a href={msg.url} download={msg.fileName}>
-                                    {msg.fileName} ({Math.ceil(msg.size / 1024)} KB)
-                                </a>
+                                <div>
+                                    <div 
+                                        className={styles.fileName}
+                                        role={onFileClick ? "button" : undefined}
+                                        tabIndex={onFileClick ? 0 : -1}
+                                        onClick={() => onFileClick?.(msg)}
+                                        style={{ cursor: onFileClick ? "pointer" : "default" }}
+                                    >
+                                        {msg.fileName} ({Math.ceil(msg.size / 1024)} KB)
+                                    </div>
+
+                                    {/* status  */}
+                                    {msg.status === "offer" && (
+                                        <div className={styles.fileHint}>
+                                            {isMe ? "Waiting for receiver..." : "Click to receive"}
+                                        </div>
+                                    )}
+                                    {msg.status === "transferring" && (
+                                        <div className={styles.fileHint}>
+                                            Transferring...
+                                        </div>
+                                    )}
+                                    {msg.status === "ready" && msg.url && (
+                                        <a 
+                                            className={styles.fileDownload}
+                                            href={msg.url}
+                                            download={msg.fileName}
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            Download
+                                        </a>
+                                    )}
+                                    {msg.status === "ready" && !msg.url && (
+                                        <div className={styles.fileHint}>
+                                            Ready
+                                        </div>
+                                    )}
+                                </div>
                             )}
                         </div>
                     </div>
@@ -43,3 +82,5 @@ export const messagesList = ( messagesList: ChatMessage[], myId : string | undef
             })}
         </div>
     );}
+
+export default MessagesList;

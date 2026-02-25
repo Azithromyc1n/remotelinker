@@ -2,17 +2,22 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from "react-router-dom";
 import { useParams } from 'react-router-dom';
 import styles from '@/styles/ChatRoom.module.css';  //styles
-import { safeUUID } from "@/utils/chat/utils";   //utils
-import type {  SignalData, ChatMessage, FileCtrl, IncomingFile  } from '@/types/chat/types';    //types
+import { safeUUID, waitBufferedLow } from "@/utils/chat/utils";   //utils
+import type {  SignalData, ChatMessage, FileOffer, FileAccept, FileEnd, FileReject, IncomingStream  } from '@/types/chat/types';    //types
 
 import {  membersList  } from '@/components/chat/MembersList';
-import {  messagesList  } from '@/components/chat/MessagesList';
+import MessagesList from '@/components/chat/MessagesList';
 import {  ShareInfo  } from "@/components/chat/ShareModal";
 import PromptModal from '@/components/PromptModal/PromptModal';
 import Dropdown from '@/components/Menu/DropdownMenu';
 
 
 import { io, type Socket } from 'socket.io-client';
+declare global {
+  interface Window {
+    showSaveFilePicker?: (options?: any) => Promise<FileSystemFileHandle>;
+  }
+}
 
 /**
  * 聊天室组件
@@ -36,6 +41,8 @@ const ChatRoom: React.FC = () => {
     const [userList, setUserList] = useState<Map<string, string>>(() => new Map());   //用户列表{userID, username}
     const [messages, setMessages] = useState<ChatMessage[]>([]);    //消息列表
     const [draft, setDraft] = useState<string>("");     //消息输入state
+
+    const [pendingFile, setPendingFile] = useState<File | null>(null);          //渲染文件meta
     //useRef
     const socketRef = useRef<Socket | null>(null);                              //socket连接
     const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map());         //webRTC连接
@@ -45,7 +52,14 @@ const ChatRoom: React.FC = () => {
     const makingOfferMap = useRef<Map<string, boolean>>(new Map());
 
     const userListRef = useRef(new Map<string, string>());      //防止闭包捕获旧值
-    
+    const iceRestartAttemptsRef = useRef<Map<string, number>>(new Map());   //ice重启尝试
+    const iceRestartingRef = useRef<Map<string, boolean>>(new Map()); 
+
+    const fileInputRef = useRef<HTMLInputElement | null>(null);         //文件meta渲染
+
+    const outgoingFilesRef = useRef<Map<string, File>>(new Map());      //发送文件offer时记录
+    const incomingStreamRef = useRef<Map<string, IncomingStream | null>>(new Map());    //接收文件流
+
     //增加用户
     const upsertUser = (userID: string, username: string) => {
         setUserList(prev => {
@@ -159,7 +173,7 @@ const ChatRoom: React.FC = () => {
             setupDataChannel(targetUserID, event.channel);
         }
 
-        pc.ontrack = (event) => {}
+        // pc.ontrack = (event) => {}
         return pc;
     }
 
@@ -302,8 +316,7 @@ const ChatRoom: React.FC = () => {
 
     }
 
-    const iceRestartAttemptsRef = useRef<Map<string, number>>(new Map());
-    const iceRestartingRef = useRef<Map<string, boolean>>(new Map());
+    
     const scheduleIceRestart = (userID: string) => {
         const attempts = iceRestartAttemptsRef.current.get(userID) ?? 0;
         if (attempts >= 5) {
@@ -312,7 +325,7 @@ const ChatRoom: React.FC = () => {
         }
         if (iceRestartingRef.current.get(userID)) return;
 
-        const delay = Math.min(1000 * Math.pow(2, attempts), 15000); // 1s/2s/4s... capped
+        const delay = Math.min(1000 * Math.pow(2, attempts), 15000);
         iceRestartAttemptsRef.current.set(userID, attempts + 1);
         iceRestartingRef.current.set(userID, true);
 
@@ -330,7 +343,7 @@ const ChatRoom: React.FC = () => {
         if (!pc) return;
         try {
             console.log("正在尝试 ICE Restart...");
-            // 关键：在 createOffer 时传入 iceRestart: true
+            // 在 createOffer 时传入 iceRestart: true
             const offer = await pc.createOffer({ iceRestart: true });
             await pc.setLocalDescription(offer);
                 
@@ -378,6 +391,7 @@ const ChatRoom: React.FC = () => {
         dc.onopen = () => {
             console.log("DataChannel open:", userID);
 
+            //ui提示用户已进入房间并且datachannel状态正常
             const name = userListRef.current.get(userID);
 
             
@@ -418,9 +432,61 @@ const ChatRoom: React.FC = () => {
 
             //文件消息
             if (dc.label === "file") {
-                //TODO: 
-                
 
+                if (data instanceof ArrayBuffer) {
+                    const activeStreamId = Array.from(incomingStreamRef.current.keys())[0];
+                    const streamInfo = activeStreamId ? incomingStreamRef.current.get(activeStreamId) : null;
+                    if(streamInfo) {
+                        if (streamInfo.mods === 'fs' && streamInfo.writable) {
+                            streamInfo.writable.write(data).catch((e:any) => console.error("写入分片失败", e));
+                        }
+                        if (streamInfo.mods === 'blob' && streamInfo.chunks) {
+                            streamInfo.chunks.push(data);
+                        }
+                        streamInfo.received += data.byteLength;
+                    }
+                    return;
+                }
+
+                if (typeof data === "string") {
+                    const msg = JSON.parse(data);
+                    if (msg.type === "file-offer") {
+                        const name = userListRef.current.get(userID) ?? msg.fromName ?? userID;
+                        setMessages(prev => [...prev, {
+                            id: msg.id, kind: "file", fromID: userID, fromName: name,
+                            fileName: msg.name, size: msg.size, mime: msg.mime, ts: msg.ts, status: "offer"
+                        }]);
+                    }
+                    if (msg.type === "file-accept") {
+                        setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, status: "transferring" } : m));
+                        startSendFileChunks(userID, msg.id);
+                    }
+                    if (msg.type === "file-end") {
+                        const streamInfo = incomingStreamRef.current.get(msg.id);
+                        if (streamInfo) {
+                            let downloadUrl = undefined;
+
+                            if (streamInfo.mods === 'fs' && streamInfo.writable) {
+                                streamInfo.writable.close();
+                            }
+                            if (streamInfo.mods === 'blob' && streamInfo.chunks) {
+                                const blob = new Blob(streamInfo.chunks, { type: streamInfo.mime });
+                                downloadUrl = URL.createObjectURL(blob);
+                            }
+                            incomingStreamRef.current.delete(msg.id);
+
+                            setMessages(prev => prev.map(m => 
+                                m.id === msg.id && m.kind === "file" 
+                                    ? { ...m, status: "ready", url: downloadUrl } 
+                                    : m
+                            ));
+                        }
+                        console.log("Send over by ", userList.get(msg.fromID));
+                    }
+                    if (msg.type === "file-reject") {
+                        console.log("Sending file canceled by ", userListRef.current.get(msg.fromID));
+                    }
+                }
             }
 
         }
@@ -447,18 +513,161 @@ const ChatRoom: React.FC = () => {
             }
         ]);
 
-        for (const [userID, dc] of textDataChannelsRef.current.entries()) {
+        for (const [, dc] of textDataChannelsRef.current.entries()) {
             if (dc.readyState === "open") {
                 dc.send(JSON.stringify(payload));
             }
         }
     }
 
-    const sendFile = () => {
-        //TODO: 
+    const sendFileMeta = (file: File) => {
+        const myId = socketRef.current?.id;
+        if (!myId || !username) return;
+
+        const id = crypto.randomUUID(); // 文件消息id
+        const ts = Date.now();
+        outgoingFilesRef.current.set(id, file);
+
+        setMessages((prev) => [
+            ...prev,
+            {
+                id,
+                kind: "file",
+                fromID: myId,
+                fromName: username,
+                fileName: file.name,
+                size: file.size,
+                mime: file.type || "application/octet-stream",
+                ts,
+                status: "offer",
+            },
+        ]);
+
+        const payload = {
+            type: "file-offer",
+            id,
+            name: file.name,
+            size: file.size,
+            mime: file.type || "application/octet-stream",
+            ts,
+            fromName: username,
+        } as FileOffer;
+
+        for (const [, dc] of fileDataChannelsRef.current.entries()) {
+            if (dc.readyState === "open") {
+                dc.send(JSON.stringify(payload));
+            }
+        }
+
+    }
+
+    const formatFileDraft = (f: File) =>`[FILE] ${f.name} (${Math.ceil(f.size / 1024)} KB)`;
+    const onPickFile = () => { fileInputRef.current?.click(); };
+
+    //分片发送文件并设置低水位高水位
+    const startSendFileChunks = async (peerID: string, fileID: string) => {
+        const file = outgoingFilesRef.current.get(fileID);
+        const dc = fileDataChannelsRef.current.get(peerID);
+        if (!file || !dc || dc.readyState !== "open") return;
+
+        dc.bufferedAmountLowThreshold = 4 * 1024 * 1024;    //4MB
+
+        const CHUNK_SIZE = 1 * 1024 * 1024; //1MB
+        const HIGH_WATER = 8 * 1024 * 1024; //8MB
+
+        let offset = 0;
+        while (offset < file.size){
+            const blob = file.slice(offset, offset + CHUNK_SIZE);
+            const buf = await blob.arrayBuffer();
+            dc.send(buf);
+            offset += buf.byteLength;
+
+            if (dc.bufferedAmount > HIGH_WATER) {
+                await waitBufferedLow(dc);
+            }
+        }
+
+        const endMsg: FileEnd = { type: "file-end", id: fileID };
+        dc.send(JSON.stringify(endMsg));
+    }
+
+    const acceptFileStream = async (fileMsg: Extract<ChatMessage, { kind: "file" }>) => {
+        const myId = socketRef.current?.id;
+        if (!myId) return;
+
+        const isIncoming = fileMsg.fromID !== myId;
+        if (!isIncoming || fileMsg.status !== "offer") return;
+
+        const dc = fileDataChannelsRef.current.get(fileMsg.fromID);
+        if (!dc || dc.readyState !== "open") return;
+
+        const HALF_ONE_GB = 536870912;  //500MB文件限制
+
+        //文件参数
+        const opt = {
+            suggestedName: fileMsg.fileName
+        }
+
+        const supportsFS = 'showSaveFilePicker' in window;
+
+        if (supportsFS) {
+            try {
+                if (window.showSaveFilePicker) {
+                    const handle = await window.showSaveFilePicker(opt);
+                    const writable = await handle.createWritable();
+
+                    incomingStreamRef.current.set(fileMsg.id, {
+                        id: fileMsg.id,
+                        name: fileMsg.fileName,
+                        size: fileMsg.size,
+                        mime: fileMsg.mime,
+                        received: 0,
+                        ts: Date.now(),
+                        mods: 'fs',
+                        writable: writable,
+                    })
+
+                    setMessages(prev => prev.map(msg => msg.id === fileMsg.id ? { ...msg, status: "transferring" } : msg));
+                    dc.send(JSON.stringify({ type: "file-accept", id: fileMsg.id, fromID: fileMsg.fromID } as FileAccept));
+                }
+            } catch (err: any) {
+                console.warn("取消了接收或接收出现问题: ",err);
+                if (err.name === "AbortError") {
+                    dc.send(JSON.stringify({ type: "file-reject", id: fileMsg.id, fromID: fileMsg.fromID, reason: "User canceled" } as FileReject));
+                }
+            }
+        } else {
+            //如果不适配showSaveFIlePicker，则转为内存Blob接收并限制500MB
+            if (fileMsg.size > HALF_ONE_GB ){
+                alert("当前浏览器不支持超大文件保存, 仅接收500MB以内文件,请尝试更换浏览器");
+                dc.send(JSON.stringify({ type: "file-reject", id: fileMsg.id, fromID: fileMsg.fromID, reason: "Browser limit exceeded (>1GB)" } as FileReject));
+                return;
+            }
+            incomingStreamRef.current.set(fileMsg.id, {
+                id: fileMsg.id,
+                name: fileMsg.fileName,
+                size: fileMsg.size,
+                mime: fileMsg.mime,
+                received: 0,
+                ts: Date.now(),
+                mods: 'blob',
+                chunks: [],
+            })
+
+            setMessages(prev => prev.map(msg => msg.id === fileMsg.id ? { ...msg, status: "transferring" } : msg));
+            dc.send(JSON.stringify({ type: "file-accept", id: fileMsg.id, fromID: fileMsg.fromID } as FileAccept));
+        }
     }
 
     const onSend = () => {
+
+        if (pendingFile) {
+            sendFileMeta(pendingFile);
+            setPendingFile(null);
+            setDraft("");
+            return;
+        }
+
         const text = draft;
         if (!text) return;
         sendChat(text);
@@ -540,8 +749,16 @@ const ChatRoom: React.FC = () => {
 
                         {/* 聊天区域和输入框 */}
                         <div className={styles.chatArea}>
-                        
-                            {messagesList(messages, myID)}
+
+                            <MessagesList
+                                messagesList={messages}
+                                myId={socketRef.current?.id}
+                                onFileClick={(fileMsg) => {
+                                    if (fileMsg.status === 'offer') {
+                                        acceptFileStream(fileMsg);
+                                    }
+                                }}
+                            />
 
                             {/* 消息输入区域 */}
                             <div className={styles.inputArea}>
@@ -550,21 +767,49 @@ const ChatRoom: React.FC = () => {
                                     className={styles.textInput} 
                                     placeholder="Type a message..."
                                     value={draft}
-                                    onChange={(e) => setDraft(e.target.value)}
+                                    onChange={(e) => {
+                                        if (pendingFile) return;
+                                        setDraft(e.target.value)
+                                    }}
                                     onKeyDown={(e) => {
                                         if (e.key === "Enter") onSend();
                                     }}
+                                    readOnly={!!pendingFile}
                                 />
+
+                                {pendingFile && (
+                                    <button type="button"
+                                        className={styles.cancelFileButton}
+                                        onClick={() => {
+                                            setPendingFile(null);
+                                            setDraft("");
+                                        }}
+                                        title="Cancel file">x</button>
+                                )}
+
                                 <button className={styles.sendButton} onClick={onSend}>
                                     SEND
                                 </button>
                                 <Dropdown 
                                     trigger={<button className={styles.addButton}>+</button>}
                                 >
-                                    <div className={styles.noSelect} style={{ padding: "10px 14px" }} data-close="true" onClick={fakeOnClick}>File</div>
-                                    <div className={styles.noSelect} style={{ padding: "10px 14px" }} data-close="true" onClick={fakeOnClick}>Voice</div>
-                                    <div className={styles.noSelect} style={{ padding: "10px 14px" }} data-close="true" onClick={fakeOnClick}>Video</div>
+                                    <div className={styles.noSelect} data-close="true" onClick={onPickFile}>File</div>
+                                    <div className={styles.noSelect} data-close="true" onClick={fakeOnClick}>Voice</div>
+                                    <div className={styles.noSelect} data-close="true" onClick={fakeOnClick}>Video</div>
                                 </Dropdown>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    style={{ display: "none" }}
+                                    multiple={false}
+                                    onChange={(e) => {
+                                        const f = e.target.files?.[0] ?? null;
+                                        if (!f) return;
+                                        setPendingFile(f);
+                                        setDraft(formatFileDraft(f));
+                                        e.currentTarget.value = "";
+                                    }}
+                                />
                             </div>
                         </div>
                     </div>

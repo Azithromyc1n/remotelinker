@@ -348,7 +348,47 @@
 }
 
 .noSelect {
+  padding: 10px 14px;
   user-select: none;          /* 标准 */
   -webkit-user-select: none;  /* Safari */
   -ms-user-select: none;      /* 老 IE/Edge */
 }
+
+.noSelect:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.cancelFileButton {
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 8px;
+  opacity: 0.8;
+}
+.cancelFileButton:hover {
+  opacity: 1;
+}
+
+.fileCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fileName {
+  font-weight: 600;
+}
+
+.fileHint {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.fileDownload {
+  font-size: 12px;
+  text-decoration: underline;
+}
+
+

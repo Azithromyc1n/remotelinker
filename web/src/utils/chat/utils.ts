@@ -44,3 +44,15 @@ export const getFirstWord = (username: string) => {
     const s = username.trim();
     return s[0].toUpperCase();
 }
+
+export const waitBufferedLow = (dc: RTCDataChannel) =>
+  new Promise<void>((resolve) => {
+    const onLow = () => {
+      if (dc.bufferedAmount <= dc.bufferedAmountLowThreshold) {
+        dc.removeEventListener("bufferedamountlow", onLow);
+        resolve();
+      }
+    };
+    dc.addEventListener("bufferedamountlow", onLow);
+    onLow();
+  });

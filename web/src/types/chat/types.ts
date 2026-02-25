@@ -26,20 +26,40 @@ export type ChatMessage = {
     fileName: string; 
     size: number; 
     mime: string; 
-    url: string; 
+    url?: string; 
+    status: "offer" | "transferring" | "ready" ;
     ts: number 
 };
 
-export type FileCtrl =
-  | { type: "file-meta"; id: string; name: string; size: number; mime: string; ts: number }
-  | { type: "file-end"; id: string; ts: number };
 
-export type IncomingFile = {
+export type Messages = {
+    messagesList: ChatMessage[];
+    myId?: string;
+    onFileClick?: (msg: Extract<ChatMessage, { kind: "file" }>) => void;
+}
+
+export type FileOffer = {
+  type: "file-offer";
   id: string;
   name: string;
   size: number;
   mime: string;
-  chunks: ArrayBuffer[];
+  ts: number;
+  fromName?: string;
+};
+
+export type FileAccept = { type: "file-accept"; id: string; fromID?: string; };
+export type FileReject = { type: "file-reject"; id: string; reason?: string; fromID?: string; };
+export type FileEnd = { type: "file-end"; id: string; fromID?: string; };
+
+export type IncomingStream = {
+  id: string;
+  name: string;
+  size: number;
+  mime: string;
   received: number;
   ts: number;
+  mods: 'fs' | 'blob';
+  writable?: any;
+  chunks?: ArrayBuffer[];
 };
