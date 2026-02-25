@@ -571,10 +571,10 @@ const ChatRoom: React.FC = () => {
         const dc = fileDataChannelsRef.current.get(peerID);
         if (!file || !dc || dc.readyState !== "open") return;
 
-        dc.bufferedAmountLowThreshold = 4 * 1024 * 1024;    //4MB
+        dc.bufferedAmountLowThreshold = 2 * 1024 * 1024;    //4MB
 
         const CHUNK_SIZE = 32 * 1024; //32KB
-        const HIGH_WATER = 32 * 1024 * 1024; //8MB
+        const HIGH_WATER = 4 * 1024 * 1024; //4MB
 
         let offset = 0;
         while (offset < file.size){
