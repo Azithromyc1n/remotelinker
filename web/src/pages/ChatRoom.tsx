@@ -3,14 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { useParams } from 'react-router-dom';
 import styles from '@/styles/ChatRoom.module.css';  //styles
 import { safeUUID, waitBufferedLow } from "@/utils/chat/utils";   //utils
-import type {  SignalData, ChatMessage, FileOffer, FileAccept, FileEnd, FileReject, IncomingStream  } from '@/types/chat/types';    //types
+import type {  SignalData, ChatMessage, FileOffer, FileAccept, FileEnd, FileReject, IncomingStream, RoomUser, UserStatus  } from '@/types/chat/types';    //types
 
 import {  membersList  } from '@/components/chat/MembersList';
 import MessagesList from '@/components/chat/MessagesList';
 import {  ShareInfo  } from "@/components/chat/ShareModal";
 import PromptModal from '@/components/PromptModal/PromptModal';
 import Dropdown from '@/components/Menu/DropdownMenu';
-
 
 import { io, type Socket } from 'socket.io-client';
 declare global {
@@ -38,7 +37,7 @@ const ChatRoom: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(true); //开关状态
     const [username, setUsername] = useState<string | null>(null); //本机用户名
     const [confirmed, setConfirmed] = useState(false);   //控制是否渲染chat页面
-    const [userList, setUserList] = useState<Map<string, string>>(() => new Map());   //用户列表{userID, username}
+    const [userList, setUserList] = useState<Map<string, RoomUser>>(() => new Map());   //用户列表{userID, username}
     const [messages, setMessages] = useState<ChatMessage[]>([]);    //消息列表
     const [draft, setDraft] = useState<string>("");     //消息输入state
 
@@ -51,7 +50,7 @@ const ChatRoom: React.FC = () => {
     const queuesRef = useRef<Map<string, RTCIceCandidateInit[]>>(new Map());   //candidate候选队列
     const makingOfferMap = useRef<Map<string, boolean>>(new Map());
 
-    const userListRef = useRef(new Map<string, string>());      //防止闭包捕获旧值
+    const userListRef = useRef<Map<string, RoomUser>>(new Map());      //防止闭包捕获旧值
     const iceRestartAttemptsRef = useRef<Map<string, number>>(new Map());   //ice重启尝试
     const iceRestartingRef = useRef<Map<string, boolean>>(new Map()); 
 
@@ -61,10 +60,24 @@ const ChatRoom: React.FC = () => {
     const incomingStreamRef = useRef<Map<string, IncomingStream | null>>(new Map());    //接收文件流
 
     //增加用户
-    const upsertUser = (userID: string, username: string) => {
+    const upsertUser = (userID: string, username: string, status: UserStatus= 'connecting') => {
         setUserList(prev => {
             const next = new Map(prev);
-            next.set(userID, username);
+            const existing = prev.get(userID);
+            if (existing) {
+                next.set(userID, { ...existing, name: username });
+            } else {
+                next.set(userID, { name: username, status });
+            }
+            return next;
+        });
+    }
+    const updateUserStatus = (userID: string, status: UserStatus) => {
+        setUserList(prev => {
+            const user = prev.get(userID);
+            if (!user || user.status === status) return prev; // 状态未变或用户不存在则不更新
+            const next = new Map(prev);
+            next.set(userID, { ...user, status });
             return next;
         });
     }
@@ -189,7 +202,7 @@ const ChatRoom: React.FC = () => {
         socket.on("connect", () => {
             const myId = socket.id as string;
             console.log("connected:", myId);
-            if (username) upsertUser(myId, username);
+            if (username) upsertUser(myId, username, 'connected');
             socket.emit("join-room", { roomID, username });
         });
         
@@ -392,11 +405,16 @@ const ChatRoom: React.FC = () => {
             console.log("DataChannel open:", userID);
 
             //ui提示用户已进入房间并且datachannel状态正常
-            const name = userListRef.current.get(userID);
+            if (dc.label === "chat") {
+                updateUserStatus(userID, 'connected');
+            }
             
         }
         dc.onclose = () => {
             console.log("DataChannel close:", userID);
+            if (dc.label === "chat") {
+                updateUserStatus(userID, 'disconnected');
+            }
             if (textDataChannelsRef.current.has(userID)) {
                 textDataChannelsRef.current.delete(userID);
             }
@@ -413,7 +431,7 @@ const ChatRoom: React.FC = () => {
             if (dc.label === "chat") {
                 if (typeof data !== "string") return;
                 const msg = JSON.parse(data);
-                const name = userListRef.current.get(userID) ?? userID;
+                const name = userListRef.current.get(userID)?.name ?? userID;
                 console.log("来自谁: (id: ", userID," name: ",userListRef.current.get(userID), ") 内容：", msg.msg, "时间：", msg.ts);
                 setMessages((prev) => [
                     ...prev,
@@ -452,7 +470,7 @@ const ChatRoom: React.FC = () => {
                 if (typeof data === "string") {
                     const msg = JSON.parse(data);
                     if (msg.type === "file-offer") {
-                        const name = userListRef.current.get(userID) ?? msg.fromName ?? userID;
+                        const name = userListRef.current.get(userID)?.name ?? msg.fromName ?? userID;
                         setMessages(prev => [...prev, {
                             id: msg.id, kind: "file", fromID: userID, fromName: name,
                             fileName: msg.name, size: msg.size, mime: msg.mime, ts: msg.ts, status: "offer"
@@ -482,10 +500,10 @@ const ChatRoom: React.FC = () => {
                                     : m
                             ));
                         }
-                        console.log("Send over by ", userListRef.current.get(msg.fromID));
+                        console.log("Send over by ", userListRef.current.get(msg.fromID)?.name);
                     }
                     if (msg.type === "file-reject") {
-                        console.log("Sending file canceled by ", userListRef.current.get(msg.fromID));
+                        console.log("Sending file canceled by ", userListRef.current.get(msg.fromID)?.name);
                     }
                 }
             }
@@ -573,7 +591,7 @@ const ChatRoom: React.FC = () => {
 
         dc.bufferedAmountLowThreshold = 2 * 1024 * 1024;    //4MB
 
-        const CHUNK_SIZE = 32 * 1024; //32KB
+        const CHUNK_SIZE = 64 * 1024; //64KB
         const HIGH_WATER = 4 * 1024 * 1024; //4MB
 
         let offset = 0;
@@ -582,7 +600,6 @@ const ChatRoom: React.FC = () => {
             const buf = await blob.arrayBuffer();
             dc.send(buf);
             offset += buf.byteLength;
-            console.log("send one slice");
 
             if (dc.bufferedAmount > HIGH_WATER) {
                 await waitBufferedLow(dc);

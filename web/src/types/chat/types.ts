@@ -63,3 +63,9 @@ export type IncomingStream = {
   writable?: any;
   chunks?: ArrayBuffer[];
 };
+
+export type UserStatus = 'connecting' | 'connected' | 'disconnected';
+export interface RoomUser {
+    name: string;
+    status: UserStatus;
+}
