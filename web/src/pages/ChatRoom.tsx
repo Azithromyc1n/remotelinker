@@ -393,7 +393,6 @@ const ChatRoom: React.FC = () => {
 
             //ui提示用户已进入房间并且datachannel状态正常
             const name = userListRef.current.get(userID);
-
             
         }
         dc.onclose = () => {
@@ -438,9 +437,11 @@ const ChatRoom: React.FC = () => {
                     const streamInfo = activeStreamId ? incomingStreamRef.current.get(activeStreamId) : null;
                     if(streamInfo) {
                         if (streamInfo.mods === 'fs' && streamInfo.writable) {
+                            console.log("API channel");
                             streamInfo.writable.write(data).catch((e:any) => console.error("写入分片失败", e));
                         }
                         if (streamInfo.mods === 'blob' && streamInfo.chunks) {
+                            console.log("blob channel");
                             streamInfo.chunks.push(data);
                         }
                         streamInfo.received += data.byteLength;
@@ -481,7 +482,7 @@ const ChatRoom: React.FC = () => {
                                     : m
                             ));
                         }
-                        console.log("Send over by ", userList.get(msg.fromID));
+                        console.log("Send over by ", userListRef.current.get(msg.fromID));
                     }
                     if (msg.type === "file-reject") {
                         console.log("Sending file canceled by ", userListRef.current.get(msg.fromID));
@@ -572,8 +573,8 @@ const ChatRoom: React.FC = () => {
 
         dc.bufferedAmountLowThreshold = 4 * 1024 * 1024;    //4MB
 
-        const CHUNK_SIZE = 1 * 1024 * 1024; //1MB
-        const HIGH_WATER = 8 * 1024 * 1024; //8MB
+        const CHUNK_SIZE = 4 * 1024 * 1024; //1MB
+        const HIGH_WATER = 32 * 1024 * 1024; //8MB
 
         let offset = 0;
         while (offset < file.size){
@@ -581,9 +582,11 @@ const ChatRoom: React.FC = () => {
             const buf = await blob.arrayBuffer();
             dc.send(buf);
             offset += buf.byteLength;
+            console.log("send one slice");
 
             if (dc.bufferedAmount > HIGH_WATER) {
                 await waitBufferedLow(dc);
+                console.log("waiting receiving...")
             }
         }
 
