@@ -573,7 +573,7 @@ const ChatRoom: React.FC = () => {
 
         dc.bufferedAmountLowThreshold = 4 * 1024 * 1024;    //4MB
 
-        const CHUNK_SIZE = 4 * 1024 * 1024; //1MB
+        const CHUNK_SIZE = 32 * 1024; //32KB
         const HIGH_WATER = 32 * 1024 * 1024; //8MB
 
         let offset = 0;
