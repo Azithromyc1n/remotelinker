@@ -36,6 +36,12 @@ const resources = {
       "members_title": "members",
       "memebrs_share": "Share",
       "members_exit": "Exit",
+      //input area
+      "input": "Type a message...",
+      "input_send": "SEND",
+      "input_file": "File",
+      "input_voice": "Vocie",
+      "input_video": "Video"
     }
   },
   zh: {
@@ -71,6 +77,12 @@ const resources = {
       "members_title": "成员列表",
       "members_share": "分享房间",
       "members_exit": "退出",
+      //input area
+      "input": "在此输入信息",
+      "input_file": "文件",
+      "input_send": "发送",
+      "input_voice": "语言",
+      "input_video": "视频"
     }
   }
 };

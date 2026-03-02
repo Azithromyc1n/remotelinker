@@ -800,7 +800,7 @@ const ChatRoom: React.FC = () => {
                                 <input 
                                     type="text" 
                                     className={styles.textInput} 
-                                    placeholder="Type a message..."
+                                    placeholder={t('input',"Type message...")}
                                     value={draft}
                                     onChange={(e) => {
                                         if (pendingFile) return;
@@ -823,14 +823,14 @@ const ChatRoom: React.FC = () => {
                                 )}
 
                                 <button className={styles.sendButton} onClick={onSend}>
-                                    SEND
+                                    {t('input_send',"SEND")}
                                 </button>
                                 <Dropdown 
                                     trigger={<button className={styles.addButton}>+</button>}
                                 >
-                                    <div className={styles.noSelect} data-close="true" onClick={onPickFile}>File</div>
-                                    <div className={styles.noSelect} data-close="true" onClick={fakeOnClick}>Voice</div>
-                                    <div className={styles.noSelect} data-close="true" onClick={fakeOnClick}>Video</div>
+                                    <div className={styles.noSelect} data-close="true" onClick={onPickFile}>{t('input_file','File')}</div>
+                                    <div className={styles.noSelect} data-close="true" onClick={fakeOnClick}>{t('input_voice','Voice')}</div>
+                                    <div className={styles.noSelect} data-close="true" onClick={fakeOnClick}>{t('input_video','Video')}</div>
                                 </Dropdown>
                                 <input
                                     ref={fileInputRef}
