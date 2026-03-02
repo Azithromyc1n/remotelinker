@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from "react-router-dom";
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import styles from '@/styles/ChatRoom.module.css';  //styles
 import { safeUUID, waitBufferedLow, checkConnectionType } from "@/utils/chat/utils";   //utils
 import type {  SignalData, ChatMessage, FileOffer, FileAccept, FileEnd, FileReject, IncomingStream, RoomUser, UserStatus  } from '@/types/chat/types';    //types
@@ -31,6 +32,8 @@ const ChatRoom: React.FC = () => {
     const SIGNALING_SERVER = import.meta.env.VITE_SIGNALING_URL as string;
 
     const { roomID } = useParams<{ roomID: string }>();
+    const [searchParams] = useSearchParams();
+    const { t, i18n } = useTranslation();
 
     //useState    
     const [isShareOpen, setIsShareOpen] = useState(false);
@@ -58,6 +61,14 @@ const ChatRoom: React.FC = () => {
 
     const outgoingFilesRef = useRef<Map<string, File>>(new Map());      //发送文件offer时记录
     const incomingStreamRef = useRef<Map<string, IncomingStream | null>>(new Map());    //接收文件流
+
+    //获取语言偏好
+    useEffect(() => {
+        const language = searchParams.get('language');
+        if (language && i18n.language !== language) {
+            i18n.changeLanguage(language);
+        }
+    }, [searchParams, i18n]);
 
     //增加用户
     const upsertUser = (userID: string, username: string, status: UserStatus= 'connecting') => {
@@ -747,7 +758,8 @@ const ChatRoom: React.FC = () => {
         <>
             <PromptModal 
                 isOpen={isModalOpen}
-                placeHolder='please input your username'
+                placeHolder={t('placeholder_username','please input username')}
+                submitText={t('confirm_btn','Confirm')}
                 onSubmit={handleSubmit}
                 onClose={handleClose}
                 closeOnBackdrop={false}
@@ -759,14 +771,14 @@ const ChatRoom: React.FC = () => {
                         {/* 侧边栏：成员列表和操作按钮 */}
                         <div className={styles.sidebar}>
                             <div className={styles.sidebarHeader}>
-                                members
+                                {t('members_title','members')}
                             </div>
                         
                             {membersList(userList, myID)}
 
                             <div className={styles.sidebarFooter}>
-                                <button className={styles.actionButton} onClick={handleClickShareBtn}>Share</button>
-                                <button className={styles.actionButton} onClick={onExit}>Exit</button>
+                                <button className={styles.actionButton} onClick={handleClickShareBtn}>{t('members_share',"Share")}</button>
+                                <button className={styles.actionButton} onClick={onExit}>{t('members_exit',"Exit")}</button>
                             </div>
                         </div>
 
