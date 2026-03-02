@@ -12,18 +12,19 @@
 /* 顶部 Header */
 .header {
     background-color: #FCEDC0;
-    width: 100%;
+    width: calc(100% + 40px);
+    margin: 0 -20px;
+    box-sizing: border-box;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 40px 10px 0;
+    padding: 15px 40px;
 }
 
 .title {
     font-weight: bold;
     font-size: 1.2rem;
     letter-spacing: 1.5px;
-    margin-left: 20px;
 }
 
 .githublogo {
@@ -132,6 +133,6 @@
         flex-basis: 80%;
     }
     .header {
-        padding: 10px 20px 0 0;
+        padding: 15px 20px;
     }
 }
